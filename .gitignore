@@ -20,6 +20,10 @@ venv/
 env/
 .env
 .env.local
+.env.*.local
+.env.development
+.env.test
+.env.production
 requirements.txt.lock
 pip-log.txt
 
@@ -39,3 +43,6 @@ desktop.ini
 htmlcov/
 .pytest_cache/
 .mypy_cache/
+
+# 但允许示例文件
+!.env.example
