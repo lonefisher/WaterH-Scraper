@@ -10,7 +10,7 @@ GPT_ANALYSIS_FOLDER = 'gpt_analysis'  # 存储GPT分析结果的文件夹
 MAX_RESULTS =100  # 限制要抓取的网页数量
 SEARCH_QUERY = "lifestyle distribution consumer electronics uk"  # 搜索关键词
 SEARCH_NUM_RESULTS = 100  # Google 搜索结果数量
-MAX_CHILD_PAGES = 999  # 每个主页面最多抓取的子页面数量
+MAX_CHILD_PAGES = 100  # 每个主页面最多抓取的子页面数量
 
 # OpenAI API 配置
 API_BASE = 'https://open.xiaojingai.com/v1'
