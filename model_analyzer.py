@@ -1,10 +1,13 @@
 import openai
-from config import API_KEY, API_BASE, MODEL, PROMPT_TEMPLATE, MAX_TOKENS
+from config import API_BASE, MODEL, PROMPT_TEMPLATE, MAX_TOKENS
 from log_utils import setup_logger, log_execution
+from dotenv import load_dotenv
+import os
 
+load_dotenv()
 # 设置日志记录器
 model_analyzer_logger = setup_logger('model_analyzer', 'model_analyzer.log')
-
+API_KEY = os.getenv('API_KEY')
 # 配置 OpenAI API
 openai.api_key = API_KEY
 openai.api_base = API_BASE
