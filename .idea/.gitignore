@@ -1,3 +1,11 @@
 # 默认忽略的文件
 /shelf/
 /workspace.xml
+/tasks.xml
+/usage.statistics.xml
+/dictionaries
+/dataSources/
+/dataSources.ids
+/dataSources.xml
+/deployment.xml
+*.iml
