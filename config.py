@@ -6,7 +6,7 @@ LOG_FOLDER = 'log'  # 存储日志的文件夹
 CHATGPT_OUTPUT_FOLDER = 'sent_to_chatgpt'  # 存储发送给ChatGPT的内容的文件夹
 
 # 网页抓取配置
-MAX_RESULTS =3  # 限制要抓取的网页数量
+MAX_RESULTS =1  # 限制要抓取的网页数量
 SEARCH_QUERY = "lifestyle distribution consumer electronics uk"  # 搜索关键词
 SEARCH_NUM_RESULTS = 100  # Google 搜索结果数量
 MAX_CHILD_PAGES = 999  # 每个主页面最多抓取的子页面数量

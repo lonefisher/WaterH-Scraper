@@ -4,6 +4,7 @@ import re
 from urllib.parse import urlparse
 from log_utils import setup_logger, log_execution
 from config import OUTPUT_FOLDER, CHATGPT_OUTPUT_FOLDER
+from content_parser import remove_duplicates_from_text
 
 # 设置日志记录器
 file_manager_logger = setup_logger('file_manager', 'file_manager.log')
@@ -67,11 +68,16 @@ def save_chatgpt_content(base_url, combined_content):
 @log_execution(file_manager_logger)
 def extract_text_from_html(html_content):
     """
-    从HTML中提取文本
+    从HTML中提取文本并去重
     """
     soup = BeautifulSoup(html_content, "html.parser")
     text = soup.get_text(separator='\n')
     text = re.sub(r'\n{3,}', '\n\n', text)
     text = re.sub(r'[ \t]+', ' ', text)
     text = re.sub(r'\n{2,}', '\n\n', text)
-    return text.strip()
+    text = text.strip()
+    
+    # 调用去重函数
+    text = remove_duplicates_from_text(text)
+    
+    return text
