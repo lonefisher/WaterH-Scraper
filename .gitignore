@@ -8,6 +8,7 @@ __pycache__/
 /log/
 /sent_to_chatgpt/
 /web_content/
+/gpt_analysis/
 
 # IDE
 .idea/
@@ -43,6 +44,3 @@ desktop.ini
 htmlcov/
 .pytest_cache/
 .mypy_cache/
-
-# 但允许示例文件
-!.env.example

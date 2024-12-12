@@ -3,11 +3,13 @@ from bs4 import BeautifulSoup
 import re
 from urllib.parse import urlparse
 from log_utils import setup_logger, log_execution
-from config import OUTPUT_FOLDER, CHATGPT_OUTPUT_FOLDER
-from content_parser import remove_duplicates_from_text
+from config import OUTPUT_FOLDER, CHATGPT_OUTPUT_FOLDER, GPT_ANALYSIS_FOLDER
+import datetime
 
 # 设置日志记录器
 file_manager_logger = setup_logger('file_manager', 'file_manager.log')
+
+_current_analysis_file = None  # 用于存储当前分析文件的路径
 
 def sanitize_filename(url):
     """
@@ -65,19 +67,38 @@ def save_chatgpt_content(base_url, combined_content):
     with open(filepath, 'w', encoding='utf-8') as f:
         f.write(combined_content)
 
-@log_execution(file_manager_logger)
-def extract_text_from_html(html_content):
+def get_or_create_analysis_file():
     """
-    从HTML中提取文本并去重
+    获取或创建当前运行的分析文件
     """
-    soup = BeautifulSoup(html_content, "html.parser")
-    text = soup.get_text(separator='\n')
-    text = re.sub(r'\n{3,}', '\n\n', text)
-    text = re.sub(r'[ \t]+', ' ', text)
-    text = re.sub(r'\n{2,}', '\n\n', text)
-    text = text.strip()
+    global _current_analysis_file
     
-    # 调用去重函数
-    text = remove_duplicates_from_text(text)
+    if _current_analysis_file is None:
+        # 创建保存目录
+        os.makedirs(GPT_ANALYSIS_FOLDER, exist_ok=True)
+        
+        # 只在第一次调用时创建新文件
+        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M')
+        filename = f'{timestamp}.txt'
+        _current_analysis_file = os.path.join(GPT_ANALYSIS_FOLDER, filename)
     
-    return text
+    return _current_analysis_file
+
+def save_gpt_analysis(rank: int, url: str, analysis_result: str):
+    """
+    保存GPT分析结果到同一个文件中
+    """
+    filepath = get_or_create_analysis_file()
+    
+    # 追加模式写入文件
+    with open(filepath, 'a', encoding='utf-8') as f:
+        f.write(f"\n{'='*50}\n")
+        f.write(f"Rank: {rank}\n")
+        f.write(f"URL: {url}\n")
+        f.write(f"Analysis Time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write(f"{'='*50}\n\n")
+        f.write("Analysis Result:\n")
+        f.write(analysis_result)
+        f.write("\n\n")
+
+

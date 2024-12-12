@@ -1,10 +1,10 @@
 import os
 import csv
 from web_scraper import fetch_html_content, extract_same_domain_links
-from file_manager import save_webpage_content, save_chatgpt_content
+from file_manager import save_webpage_content, save_chatgpt_content, save_gpt_analysis
 from content_parser import extract_text_from_html
 from model_analyzer import analyze_with_model
-from config import MAX_RESULTS, PROMPT_TEMPLATE, MAX_CHILD_PAGES
+from config import MAX_RESULTS, PROMPT_TEMPLATE, MAX_CHILD_PAGES, SEARCH_QUERY, SEARCH_NUM_RESULTS
 
 def process_url(rank, url):
     """
@@ -19,15 +19,17 @@ def process_url(rank, url):
         
         # 提取同域名链接
         child_links = extract_same_domain_links(main_html, url)
-        child_contents = {}
         
-        # 获取子页面内容
+        # 处理子页面内容
+        child_contents = {}
         for child_url in list(child_links)[:MAX_CHILD_PAGES]:
             try:
                 print(f"  Fetching child URL: {child_url}")
                 child_html = fetch_html_content(child_url)
                 child_text = extract_text_from_html(child_html)
-                child_contents[child_url] = child_text
+                if child_text.strip():  # 只保存非空内容
+                    child_contents[child_url] = child_text
+                    
             except Exception as e:
                 print(f"  Failed to fetch child URL: {child_url}. Error: {e}")
                 continue
@@ -38,7 +40,8 @@ def process_url(rank, url):
         # 组合内容用于ChatGPT分析
         combined_content = f"Main site {url}:\n{main_text}\n\n"
         for child_url, content in child_contents.items():
-            combined_content += f"Child site {child_url}:\n{content}\n\n"
+            if content.strip():  # 只添加非空内容
+                combined_content += f"Child site {child_url}:\n{content}\n\n"
         
         # 保存发送给ChatGPT的内容
         save_chatgpt_content(url, combined_content)
@@ -47,26 +50,29 @@ def process_url(rank, url):
         modified_prompt = PROMPT_TEMPLATE.format(content=combined_content)
         analysis_result = analyze_with_model(modified_prompt)
         
+        # 保存分析结果
+        save_gpt_analysis(rank, url, analysis_result)
+        
         print(f"\nAnalysis result for URL rank {rank} ({url}):\n{analysis_result}\n")
         return analysis_result
         
     except Exception as e:
-        print(f"Failed to process URL rank {rank}, URL: {url}. Error: {str(e)}")
-        return None
+        print(f"Failed to process URL rank {rank}, URL: {url}. Error: {e}")
+        return f"Error: {str(e)}"
 
-def fetch_search_results(query):
+def fetch_search_results():
     """
     使用Google搜索获取结果并保存到CSV
     """
     try:
         from googlesearch import search
         results = []
-        for i, url in enumerate(search(query, num_results=MAX_RESULTS), 1):
+        for i, url in enumerate(search(SEARCH_QUERY, num_results=SEARCH_NUM_RESULTS), 1):
             results.append([i, url])
         
         with open('search_results.csv', 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
-            writer.writerow(['Rank', 'URL'])
+            writer.writerow(['Rank', 'URL'])  # 添加标题行
             writer.writerows(results)
             
     except Exception as e:
@@ -74,12 +80,11 @@ def fetch_search_results(query):
 
 def main():
     input_file = 'search_results.csv'
-    query = "lifestyle distribution consumer electronics uk"  # 搜索关键词
 
     # 检查是否存在 CSV 文件
     if not os.path.exists(input_file):
         print(f"{input_file} not found. Running Google search to generate it...")
-        fetch_search_results(query)
+        fetch_search_results()
 
     # 处理 CSV 文件中的 URL
     if os.path.exists(input_file):
