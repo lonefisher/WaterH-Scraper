@@ -3,73 +3,75 @@ from bs4 import BeautifulSoup
 import re
 from urllib.parse import urlparse
 from log_utils import setup_logger, log_execution
-from config import OUTPUT_FOLDER
+from config import OUTPUT_FOLDER, CHATGPT_OUTPUT_FOLDER
 
 # 设置日志记录器
 file_manager_logger = setup_logger('file_manager', 'file_manager.log')
 
-# 确保输出文件夹存在
-os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+def sanitize_filename(url):
+    """
+    将URL转换为安全的文件名
+    - 移除协议前缀 (http://, https://)
+    - 将特殊字符替换为下划线
+    - 限制长度
+    """
+    # 移除协议前缀
+    url = re.sub(r'^https?://', '', url)
+    # 替换特殊字符
+    url = re.sub(r'[\\/:*?"<>|]', '_', url)
+    # 限制长度（保留最后100个字符）
+    if len(url) > 100:
+        url = url[-100:]
+    return url
 
+def save_webpage_content(base_url, main_content, child_contents):
+    """
+    保存主页面和子页面内容，文件名包含URL信息
+    
+    Args:
+        base_url (str): 主URL
+        main_content (str): 主页面内容
+        child_contents (dict): 子页面内容字典 {url: content}
+    """
+    # 创建基本目录
+    domain = urlparse(base_url).netloc
+    base_path = os.path.join(OUTPUT_FOLDER, domain)
+    os.makedirs(base_path, exist_ok=True)
+    
+    # 保存主页面内容
+    main_filename = f'main-url_{sanitize_filename(base_url)}.txt'
+    with open(os.path.join(base_path, main_filename), 'w', encoding='utf-8') as f:
+        f.write(f"URL: {base_url}\n\n")  # 在文件开头写入URL
+        f.write(main_content)
+    
+    # 保存子页面内容
+    for i, (url, content) in enumerate(child_contents.items(), 1):
+        child_filename = f'child-url-{i}_{sanitize_filename(url)}.txt'
+        with open(os.path.join(base_path, child_filename), 'w', encoding='utf-8') as f:
+            f.write(f"URL: {url}\n\n")  # 在文件开头写入URL
+            f.write(content)
+
+def save_chatgpt_content(base_url, combined_content):
+    """
+    保存发送给ChatGPT的内容
+    """
+    domain = urlparse(base_url).netloc
+    os.makedirs(CHATGPT_OUTPUT_FOLDER, exist_ok=True)
+    
+    filename = f'{domain}_{sanitize_filename(base_url)}.txt'
+    filepath = os.path.join(CHATGPT_OUTPUT_FOLDER, filename)
+    
+    with open(filepath, 'w', encoding='utf-8') as f:
+        f.write(combined_content)
 
 @log_execution(file_manager_logger)
 def extract_text_from_html(html_content):
     """
-    Extract plain text from HTML using BeautifulSoup and clean it up:
-    - Preserve paragraph structure by keeping up to 2 consecutive newlines.
-    - Replace extra spaces and single newlines with a single space.
-
-    Parameters:
-        html_content (str): Raw HTML content.
-
-    Returns:
-        str: Cleaned text extracted from the HTML.
+    从HTML中提取文本
     """
     soup = BeautifulSoup(html_content, "html.parser")
-
-    # Extract text with BeautifulSoup
-    text = soup.get_text(separator='\n')  # Preserve structure with \n between tags
-
-    # Preserve up to 2 consecutive newlines, replace others with a single space
-    text = re.sub(r'\n{3,}', '\n\n', text)  # Replace 3+ newlines with 2 newlines
-    text = re.sub(r'[ \t]+', ' ', text)  # Replace multiple spaces/tabs with a single space
-    text = re.sub(r'\n{2,}', '\n\n', text)  # Ensure that no more than 2 newlines exist consecutively
+    text = soup.get_text(separator='\n')
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    text = re.sub(r'[ \t]+', ' ', text)
+    text = re.sub(r'\n{2,}', '\n\n', text)
     return text.strip()
-
-
-@log_execution(file_manager_logger)
-def generate_file_path(url, extension='txt'):
-    """
-    Generate a file path based on the URL and desired extension.
-
-    Parameters:
-        url (str): The URL of the website.
-        extension (str): The file extension.
-
-    Returns:
-        str: The generated file path.
-    """
-    parsed_url = urlparse(url)
-    domain_name = parsed_url.netloc.replace(':', '_')  # Replace colons for compatibility
-    return os.path.join(OUTPUT_FOLDER, f"{domain_name}.{extension}")
-
-
-@log_execution(file_manager_logger)
-def save_text_to_file(file_path, text_content):
-    """
-    Save plain text content to a specified file path.
-
-    Parameters:
-        file_path (str): Path of the file to save.
-        text_content (str): Text content to be saved.
-
-    Returns:
-        None
-    """
-    try:
-        with open(file_path, mode='w', encoding='utf-8') as file:
-            file.write(text_content)
-        file_manager_logger.info(f"Text content successfully saved to {file_path}")
-    except Exception as e:
-        file_manager_logger.error(f"Failed to save text content to {file_path}. Error: {e}", exc_info=True)
-        raise

@@ -1,5 +1,5 @@
 import openai
-from config import API_BASE, MODEL, PROMPT_TEMPLATE, MAX_TOKENS
+from config import API_BASE, MODEL, PROMPT_TEMPLATE
 from log_utils import setup_logger, log_execution
 from dotenv import load_dotenv
 import os
@@ -13,7 +13,7 @@ openai.api_key = API_KEY
 openai.api_base = API_BASE
 
 @log_execution(model_analyzer_logger)
-def analyze_with_model(content, prompt_template=PROMPT_TEMPLATE, model=MODEL, max_tokens=MAX_TOKENS):
+def analyze_with_model(content, prompt_template=PROMPT_TEMPLATE, model=MODEL):
     """
     Analyze content using a specified OpenAI model and prompt template.
 
@@ -21,7 +21,6 @@ def analyze_with_model(content, prompt_template=PROMPT_TEMPLATE, model=MODEL, ma
         content (str): The text content to be analyzed.
         prompt_template (str): The prompt template used to generate the analysis.
         model (str): The OpenAI model to be used.
-        max_tokens (int): The maximum number of tokens to be generated.
 
     Returns:
         str: The analysis result from the model.
@@ -40,7 +39,6 @@ def analyze_with_model(content, prompt_template=PROMPT_TEMPLATE, model=MODEL, ma
                 {"role": "system", "content": "You are a skilled assistant analyzing websites for potential distributors."},
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=max_tokens,
             temperature=0  # Deterministic results for consistency
         )
 
