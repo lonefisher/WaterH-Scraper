@@ -3,6 +3,7 @@ from log_utils import setup_logger, log_execution
 from urllib.parse import urlparse, urljoin
 from bs4 import BeautifulSoup
 from config import MAX_CHILD_PAGES
+from content_parser import extract_text_from_html
 
 # 设置日志记录器
 web_scraper_logger = setup_logger('web_scraper', 'web_scraper.log')
@@ -74,3 +75,44 @@ def extract_same_domain_links(html_content, base_url):
     
     # 限制返回的链接数量
     return set(list(links)[:MAX_CHILD_PAGES])
+
+def process_website(rank, url):
+    """
+    处理单个网站及其子页面
+    """
+    try:
+        print(f"\nProcessing rank {rank}, URL: {url}")
+        
+        # 获取主页面内容
+        main_html = fetch_html_content(url)
+        main_text = extract_text_from_html(main_html)
+        
+        # 提取同域名链接
+        child_links = extract_same_domain_links(main_html, url)
+        
+        # 处理子页面内容
+        child_contents = process_child_pages(child_links)
+        
+        return main_text, child_contents
+        
+    except Exception as e:
+        print(f"Failed to process URL rank {rank}, URL: {url}. Error: {e}")
+        return None, None
+
+def process_child_pages(child_links):
+    """
+    处理子页面
+    """
+    child_contents = {}
+    for child_url in list(child_links)[:MAX_CHILD_PAGES]:
+        try:
+            print(f"  Fetching child URL: {child_url}")
+            child_html = fetch_html_content(child_url)
+            child_text = extract_text_from_html(child_html)
+            if child_text.strip():
+                child_contents[child_url] = child_text
+                
+        except Exception as e:
+            print(f"  Failed to fetch child URL: {child_url}. Error: {e}")
+            continue
+    return child_contents

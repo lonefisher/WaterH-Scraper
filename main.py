@@ -1,103 +1,62 @@
 import os
-import csv
-from web_scraper import fetch_html_content, extract_same_domain_links
+from scrap_link_from_google import fetch_search_results, process_search_results
+from web_scraper import process_website
 from file_manager import save_webpage_content, save_chatgpt_content, save_gpt_analysis
-from content_parser import extract_text_from_html
 from model_analyzer import analyze_with_model
-from config import MAX_RESULTS, PROMPT_TEMPLATE, MAX_CHILD_PAGES, SEARCH_QUERY, SEARCH_NUM_RESULTS
-
-def process_url(rank, url):
-    """
-    处理单个URL及其子页面
-    """
-    try:
-        print(f"\nProcessing rank {rank}, URL: {url}")
-        
-        # 获取主页面内容
-        main_html = fetch_html_content(url)
-        main_text = extract_text_from_html(main_html)
-        
-        # 提取同域名链接
-        child_links = extract_same_domain_links(main_html, url)
-        
-        # 处理子页面内容
-        child_contents = {}
-        for child_url in list(child_links)[:MAX_CHILD_PAGES]:
-            try:
-                print(f"  Fetching child URL: {child_url}")
-                child_html = fetch_html_content(child_url)
-                child_text = extract_text_from_html(child_html)
-                if child_text.strip():  # 只保存非空内容
-                    child_contents[child_url] = child_text
-                    
-            except Exception as e:
-                print(f"  Failed to fetch child URL: {child_url}. Error: {e}")
-                continue
-        
-        # 保存网页内容
-        save_webpage_content(url, main_text, child_contents)
-        
-        # 组合内容用于ChatGPT分析
-        combined_content = f"Main site {url}:\n{main_text}\n\n"
-        for child_url, content in child_contents.items():
-            if content.strip():  # 只添加非空内容
-                combined_content += f"Child site {child_url}:\n{content}\n\n"
-        
-        # 保存发送给ChatGPT的内容
-        save_chatgpt_content(url, combined_content)
-        
-        # 分析内容
-        modified_prompt = PROMPT_TEMPLATE.format(content=combined_content)
-        analysis_result = analyze_with_model(modified_prompt)
-        
-        # 保存分析结果
-        save_gpt_analysis(rank, url, analysis_result)
-        
-        print(f"\nAnalysis result for URL rank {rank} ({url}):\n{analysis_result}\n")
-        return analysis_result
-        
-    except Exception as e:
-        print(f"Failed to process URL rank {rank}, URL: {url}. Error: {e}")
-        return f"Error: {str(e)}"
-
-def fetch_search_results():
-    """
-    使用Google搜索获取结果并保存到CSV
-    """
-    try:
-        from googlesearch import search
-        results = []
-        for i, url in enumerate(search(SEARCH_QUERY, num_results=SEARCH_NUM_RESULTS), 1):
-            results.append([i, url])
-        
-        with open('search_results.csv', 'w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            writer.writerow(['Rank', 'URL'])  # 添加标题行
-            writer.writerows(results)
-            
-    except Exception as e:
-        print(f"Failed to fetch search results: {str(e)}")
+from config import MAX_RESULTS, PROMPT_TEMPLATE, SEARCH_QUERY, SEARCH_NUM_RESULTS
 
 def main():
     input_file = 'search_results.csv'
-
-    # 检查是否存在 CSV 文件
+    
+    # 如果不存在搜索结果，执行搜索
     if not os.path.exists(input_file):
-        print(f"{input_file} not found. Running Google search to generate it...")
-        fetch_search_results()
+        fetch_search_results(SEARCH_QUERY, SEARCH_NUM_RESULTS, input_file)
+    
+    # 处理搜索结果
+    for rank, url in process_search_results(input_file, MAX_RESULTS):
+        try:
+            # 删除这行重复的输出
+            # print(f"\nProcessing rank {rank}, URL: {url}")
+            
+            # 处理网站内容
+            main_text, child_contents = process_website(rank, url)
+            if main_text is None:
+                continue
+                
+            # 保存网页内容
+            save_webpage_content(url, main_text, child_contents)
+            
+            # 准备和分析内容
+            combined_content = prepare_content(url, main_text, child_contents)
+            save_chatgpt_content(url, combined_content)
+            
+            # GPT分析
+            analysis_result = analyze_content(combined_content)
+            save_gpt_analysis(rank, url, analysis_result)
+            
+            # 打印分析结果
+            print(f"\nAnalysis result for URL rank {rank} ({url}):")
+            print(analysis_result)
+            print("\n" + "="*50)
+            
+        except Exception as e:
+            print(f"Error processing URL rank {rank}: {str(e)}")
+            continue
 
-    # 处理 CSV 文件中的 URL
-    if os.path.exists(input_file):
-        with open(input_file, mode='r', encoding='utf-8') as file:
-            csv_reader = csv.reader(file)
-            next(csv_reader)  # 跳过标题行
+def prepare_content(url, main_text, child_contents):
+    """准备发送给GPT的内容"""
+    combined_content = f"Main site {url}:\n{main_text}\n\n"
+    for child_url, content in child_contents.items():
+        if content.strip():
+            combined_content += f"Child site {child_url}:\n{content}\n\n"
+    return combined_content
 
-            for row in csv_reader:
-                if len(row) >= 2:  # 确保行包含足够的列
-                    rank, url = row
-                    if MAX_RESULTS is not None and int(rank) > MAX_RESULTS:
-                        break
-                    process_url(rank, url)
+def analyze_content(combined_content):
+    """分析内容"""
+    print("\nSending to GPT for analysis...")
+    modified_prompt = PROMPT_TEMPLATE.format(content=combined_content)
+    analysis_result = analyze_with_model(modified_prompt)
+    return analysis_result
 
 if __name__ == "__main__":
     main()

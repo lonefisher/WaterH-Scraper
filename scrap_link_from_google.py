@@ -1,5 +1,6 @@
 import csv
 from googlesearch import search
+import os
 
 def fetch_search_results(query, num_results=100, output_file='search_results.csv'):
     """
@@ -29,3 +30,21 @@ def fetch_search_results(query, num_results=100, output_file='search_results.csv
         print(f"Search results saved to {output_file}.")
     except Exception as e:
         print(f"An error occurred during Google search: {e}")
+
+def process_search_results(input_file, max_results=None):
+    """
+    处理搜索结果CSV文件
+    """
+    results = []
+    if os.path.exists(input_file):
+        with open(input_file, mode='r', encoding='utf-8') as file:
+            csv_reader = csv.reader(file)
+            next(csv_reader)  # 跳过标题行
+            
+            for row in csv_reader:
+                if len(row) >= 2:
+                    rank, url = row
+                    if max_results is not None and int(rank) > max_results:
+                        break
+                    results.append((rank, url))
+    return results
